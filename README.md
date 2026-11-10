@@ -1,7 +1,5 @@
 # Detecting Query Performance Regression in SQL Server Index Tuning with a Rank-Average Ensemble of Cost-Sensitive Models
 
-Repositori ini berisi kode, data, dan hasil yang mendukung makalah di atas.
-
 Penelitian ini membahas query yang justru menjadi lebih lambat setelah sebuah indeks ditambahkan, yang disebut *Query Performance Regression* (QPR). Pertanyaannya: apakah model machine learning bisa mengenali QPR lebih baik daripada detektor berbasis pola dari Wu et al.? Percobaan memakai benchmark DSB skala 10 di Microsoft SQL Server 2022. Metode yang diusulkan, Rank-Average Ensemble, dibandingkan dengan detektor Wu pada jumlah transisi yang ditandai (flag) yang sama, supaya perbandingannya adil.
 
 ## Isi repositori
