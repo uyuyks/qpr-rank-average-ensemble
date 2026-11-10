@@ -1,6 +1,6 @@
-# qpr-rank-average-ensemble
+# Detecting Query Performance Regression in SQL Server Index Tuning with a Rank-Average Ensemble of Cost-Sensitive Models
 
-Kode, data, dan hasil untuk makalah **"Detecting Query Performance Regression in SQL Server Index Tuning with a Rank-Average Ensemble of Cost-Sensitive Models"**.
+Repositori ini berisi kode, data, dan hasil yang mendukung makalah di atas.
 
 Penelitian ini membahas query yang justru menjadi lebih lambat setelah sebuah indeks ditambahkan, yang disebut *Query Performance Regression* (QPR). Pertanyaannya: apakah model machine learning bisa mengenali QPR lebih baik daripada detektor berbasis pola dari Wu et al.? Percobaan memakai benchmark DSB skala 10 di Microsoft SQL Server 2022. Metode yang diusulkan, Rank-Average Ensemble, dibandingkan dengan detektor Wu pada jumlah transisi yang ditandai (flag) yang sama, supaya perbandingannya adil.
 
@@ -21,13 +21,14 @@ Penelitian ini membahas query yang justru menjadi lebih lambat setelah sebuah in
 Satu *transisi* berarti satu langkah penambahan indeks pada satu query.
 
 1. Workload DSB skala 10 berisi 74 query (37 template, masing-masing dua instance). Indeks ditambahkan satu per satu oleh Database Engine Tuning Advisor (DTA).
-2. Pada setiap langkah, execution plan sebelum dan sesudah indeks dicatat, lalu diambil 117 fitur darinya. Sebuah transisi dihitung sebagai QPR jika waktu jalan sesudahnya minimal 1,5 kali waktu sebelumnya, dengan waktu berupa median dari beberapa kali pengukuran.
-3. Ada dua batch data: batch lama (seed 997, 322 transisi) dan batch baru (seed 2026, 328 transisi). Model dilatih di satu batch dan diuji di batch yang lain, lalu arahnya dibalik. Pada tiap pengujian, jumlah transisi yang ditandai disamakan dengan detektor Wu.
-4. Rank-Average Ensemble merata-ratakan peringkat skor dari tiga model: XGBoost berbasis struktur plan, XGBoost berbasis kardinalitas lokal, dan random forest.
+2. Pada setiap langkah, execution plan sebelum dan sesudah indeks dicatat, lalu diambil 117 fitur darinya.
+3. Waktu jalan query diukur beberapa kali dan diambil mediannya. Sebuah transisi dihitung sebagai QPR jika waktu jalan sesudah indeks minimal 1,5 kali waktu sebelumnya.
+4. Ada dua batch data: batch lama (seed 997, 322 transisi) dan batch baru (seed 2026, 328 transisi). Model dilatih di satu batch dan diuji di batch yang lain, lalu arahnya dibalik. Pada setiap pengujian, jumlah transisi yang ditandai disamakan dengan detektor Wu.
+5. Rank-Average Ensemble merata-ratakan peringkat skor dari tiga model: XGBoost berbasis struktur plan, XGBoost berbasis kardinalitas lokal, dan random forest.
 
 ## Cara mengulang percobaan
 
-Cukup memakai Google Colab (CPU). Bagian pengukuran waktu jalan butuh SQL Server sendiri, tetapi evaluasi model bisa diulang hanya dari berkas di `data/`.
+Evaluasi model bisa diulang di Google Colab (CPU) hanya dari berkas di `data/`. Mengukur ulang waktu jalan query memerlukan SQL Server sendiri.
 
 1. Buka Colab, lalu sambungkan Google Drive.
 2. Salin berkas dari `data/` ke `MyDrive/QPR_SF10_Research/` dengan susunan berikut:
@@ -58,21 +59,31 @@ Setiap batch punya folder sendiri di `data/`: `batch_lama/` (seed 997, 322 trans
 
 | Berkas | Isi |
 |---|---|
-| `incremental_m0_m2b_features.csv` | Fitur dan label satu kali ukur per transisi (143 kolom) |
+| `incremental_m0_m2b_features.csv` | Fitur dan label dari satu kali pengukuran, satu baris per transisi (143 kolom) |
 | `remeasure_labels_v2.csv` | Label v2 dari pengukuran berulang (median) |
-| `dta_bertahap_rekomendasi.sql` | Rekomendasi indeks DTA per query dan per iterasi (batch lama 325, batch baru 328) |
+| `dta_bertahap_rekomendasi.sql` | Rekomendasi indeks DTA per query dan per iterasi, saat indeks ditambahkan satu per satu (batch lama 325, batch baru 328) |
 | `dta_bertahap_objek_dibuat.csv` | Indeks dan statistik yang dibuat pada tiap iterasi |
 | `dta_bertahap_ringkasan.csv`, `dta_bertahap_status.csv` | Ringkasan urutan iterasi dan status tiap query |
 | `dta_sekali_jalan_rekomendasi.sql`, `dta_sekali_jalan_status.csv` | Rekomendasi DTA satu kali jalan untuk 74 query, 72 di antaranya menghasilkan rekomendasi (hanya batch lama) |
 
-Berkas fitur dan label hanya berisi identitas transisi, angka fitur, dan label. Nama server dan jalur berkas lokal sudah dihapus dari semua berkas.
+Berkas fitur dan label hanya berisi identitas transisi, angka fitur, dan label.
 
-Datanya berasal dari benchmark publik DSB yang dibangkitkan sendiri, bukan data perusahaan. Workload dibangkitkan dengan `dsqgen` dan `distcomp` dari [repositori DSB resmi](https://github.com/microsoft/dsb) (lisensi MIT): 37 template, dua instance per template, parameter berdistribusi normal (sigma 2, pusat 0, seed 997 untuk batch lama). Teks query hasil bangkitan tidak disertakan di sini. Untuk mendapatkannya, bangkitkan ulang dengan pengaturan tersebut.
+### Sumber data DSB
+
+Datanya berasal dari benchmark publik DSB yang dibangkitkan sendiri, tanpa data perusahaan. Workload dibangkitkan dengan `dsqgen` dan `distcomp` dari [repositori DSB resmi](https://github.com/microsoft/dsb) (lisensi MIT) dengan pengaturan berikut:
+
+- 37 template, dua instance per template
+- parameter berdistribusi normal (sigma 2, pusat 0)
+- seed 997 untuk batch lama
+
+Teks query hasil bangkitan tidak disertakan di sini. Untuk mendapatkannya, bangkitkan ulang dengan pengaturan tersebut.
 
 **Catatan tentang TPC-DS.** DSB diturunkan dari TPC-DS tetapi tidak memenuhi spesifikasi TPC-DS, jadi hasil di repositori ini tidak bisa dibandingkan dengan hasil TPC-DS yang dipublikasikan secara resmi (sesuai `NOTICE.md` di repositori DSB). Penelitian ini bersifat akademik dan tidak membuat klaim pemasaran.
 
-## Alat dan komputer yang dipakai
+## Spesifikasi komputasi
 
-- **Pengukuran waktu jalan:** laptop Windows 10 Enterprise (Intel Core i7-8550U, RAM 32 GB) dengan Microsoft SQL Server 2022.
-- **Pemodelan dan analisis:** Google Colab, CPU saja.
-- **Pustaka Python:** daftar ada di `requirements.txt`. Versinya mengikuti Google Colab pada November 2026 dan belum dikunci.
+| Kebutuhan | Spesifikasi |
+|---|---|
+| Pengukuran waktu jalan | Laptop Windows 10 Enterprise, Intel Core i7-8550U, RAM 32 GB, Microsoft SQL Server 2022 |
+| Pemodelan dan analisis | Google Colab, CPU saja |
+| Pustaka Python | Lihat `requirements.txt`. Versi pustaka belum dikunci; gunakan versi bawaan Google Colab pada November 2026 |
